@@ -1,7 +1,7 @@
 ---
 name: typst-cn
 description: 用 Typst 构建中文学术论文/汇报文稿。触发条件：用户要求用 Typst 排版中文文档、创建 typst 文件、编译 typst、写中文论文或汇报的 typst 稿子。
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Typst 中文文档构建
@@ -164,8 +164,18 @@ $ "RV"_t = sum_(i=1)^n r^2 $
 ### 数学模式注意事项
 
 - `%` 是 Typst 数学模式中的注释符，不能直接用于百分号。需要写作 `\%`
-- 乘号用 `times` 而非 Unicode `×`
+- 乘号用 `times` *而非* `\times`（Typst 数学命令不带反斜杠，这是 LaTeX → Typst 最常见的迁移坑）
 - 除法用 `\/` 而非 `/`（`/` 在数学模式中被视为连字符）
+- **LaTeX 迁移注意**：Typst 数学命令均不加 `\` 前缀。常见对照：`\times`→`times`、`\frac{a}{b}`→`a/b`、`\sqrt`→`sqrt`、`\sum`→`sum`
+
+### 数学模式上标/下标分组
+
+Typst 用 `(...)` 而非 `{...}` 进行分组：
+
+```typst
+$ (1+"WACC")^(t-0.5) $   // 正确：括号分组
+$ (1+"WACC")^{t-0.5} $   // 错误：花括号在 Typst 数学中非分组符
+```
 
 ## 文本中避免的坑
 
@@ -222,6 +232,80 @@ $ "AP"@12 $      // 错误
 ```
 
 Typst 使用 `+` 开头表示无序列表（bullet），`-` 开头也表示列表项。有序列表使用 `+` 或数字。缩进值可按需调整。
+
+## 页码控制
+
+**封面不计入页码，正文从第 1 页开始**：
+
+```typst
+// 封面部分
+#set page(numbering: none)
+#align(center)[
+  ...封面内容...
+]
+#pagebreak()
+
+// 正文开始——重置页码计数器
+#counter(page).update(1)
+#set page(numbering: "1")
+```
+
+关键点：`#counter(page).update(1)` 将当前页的计数器设为 1，后续 `#set page(numbering: "1")` 让页码以阿拉伯数字显示。
+
+## 内容块闭合
+
+`#align(center)[...]`、`#figure(...)[...]` 等块级元素的内容块 `[...]` 必须闭合。常见错误：
+
+```typst
+#align(center)[
+  #text(size: 20pt)[标题]
+  #v(2cm)
+  #text(size: 10pt)[副标题]
+// ❌ 缺少 ]
+#pagebreak()
+```
+
+正确写法：
+```typst
+#align(center)[
+  #text(size: 20pt)[标题]
+  #v(2cm)
+  #text(size: 10pt)[副标题]
+]  // ✅
+#pagebreak()
+```
+
+Typst 的错误信息会指向 `#align(center)[` 处报告"unclosed delimiter"。
+
+## 表格注意事项
+
+### 不支持单元格合并
+
+Typst 原生的 `table()` 不支持 `colspan`/`rowspan`。如需复杂布局，拆分为多个简单表（每个表每行单元格数相同）：
+
+```typst
+// ❌ 不要：试图在同一表中左右并排两组不同列的数据
+// ✅ 改为：拆成两个独立的 #figure(table(...), ...) 分别展示
+```
+
+### 空内容块占位
+
+表格中需要留空时使用空内容块 `[]`，不要省略该位置。每行的单元格数必须与 `columns` 数量严格一致。
+
+## BibTeX 文献管理
+
+Typst 通过 `#bibliography("file.bib")` 支持 BibTeX/BibLaTeX 格式。`.bib` 文件注意事项：
+
+- 注释用 `%`，**不是** `//`（与 Typst 代码不同）
+- 支持的 entry 类型：`@article`、`@book`、`@report`、`@misc` 等
+- 正文中用 `@label` 或 `[@label]` 引用
+
+```typst
+// 在文档末尾
+#pagebreak()
+#heading(level: 1, numbering: none)[参考文献]
+#bibliography("references.bib", title: "引用文献")
+```
 
 ## 编译
 
